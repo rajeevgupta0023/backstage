@@ -40,6 +40,7 @@ import { pluginInfoResolver } from './pluginInfoResolver';
 import { appModuleNav } from './modules/appModuleNav';
 import { appModuleHome } from './modules/appModuleHome';
 import { appModuleScaffolder } from './modules/appModuleScaffolder';
+import { appModuleCatalogGraphOverlays } from './modules/appModuleCatalogGraphOverlays';
 import catalogPlugin from '@backstage/plugin-catalog/alpha';
 import InfoIcon from '@material-ui/icons/Info';
 
@@ -96,6 +97,7 @@ const app = createApp({
     appModuleNav,
     appModuleHome,
     appModuleScaffolder,
+    appModuleCatalogGraphOverlays,
     ...collectedLegacyPlugins,
   ],
   advanced: {

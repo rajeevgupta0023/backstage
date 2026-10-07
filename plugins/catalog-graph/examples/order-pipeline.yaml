@@ -1,0 +1,264 @@
+# Sample catalog for the catalog graph node overlay prototype.
+#
+# An end-to-end order pipeline: storefront -> checkout -> ingest -> Kafka ->
+# processing -> storage -> analytics. The `catalog-graph.demo/*` annotations
+# drive the fake Argo CD / Prometheus overlay providers in packages/app, so
+# you can change a scenario by editing this file:
+#
+#   catalog-graph.demo/health:     ok | degraded | failing
+#   catalog-graph.demo/latency-ms: base p95 latency for the sparkline
+#   catalog-graph.demo/sync:       Argo CD sync status text
+#   catalog-graph.demo/ring:       deploying | maintenance (explicit ring)
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: commerce
+  description: Everything involved in taking and fulfilling orders
+spec:
+  owner: team-commerce
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: order-pipeline
+  description: End-to-end pipeline from checkout to analytics
+spec:
+  owner: team-commerce
+  domain: commerce
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: team-commerce
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: team-data
+spec:
+  type: team
+  children: []
+---
+# ---------- Edge ----------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: storefront-web
+  description: Customer facing web shop
+  annotations:
+    argocd/app-name: storefront-web
+    prometheus.io/rule: histogram_quantile(0.95, http_latency{app="storefront-web"})
+    catalog-graph.demo/latency-ms: '180'
+    catalog-graph.demo/ring: deploying
+spec:
+  type: website
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  consumesApis:
+    - checkout-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: checkout-api
+  description: REST API used by the storefront to place orders
+spec:
+  type: openapi
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  definition: |
+    openapi: 3.0.0
+    info: { title: Checkout API, version: 1.0.0 }
+    paths: {}
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: checkout-service
+  description: Validates carts, charges payment and emits orders
+  annotations:
+    argocd/app-name: checkout-service
+    prometheus.io/rule: histogram_quantile(0.95, http_latency{app="checkout-service"})
+    catalog-graph.demo/latency-ms: '240'
+spec:
+  type: service
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  providesApis:
+    - checkout-api
+  consumesApis:
+    - payments-api
+  dependsOn:
+    - component:order-ingest
+---
+# ---------- Payments (the bottleneck) ----------
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: payments-api
+  description: Internal payments API
+spec:
+  type: openapi
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  definition: |
+    openapi: 3.0.0
+    info: { title: Payments API, version: 1.0.0 }
+    paths: {}
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: payment-service
+  description: Talks to the external payment provider
+  annotations:
+    argocd/app-name: payment-service
+    prometheus.io/rule: histogram_quantile(0.95, http_latency{app="payment-service"})
+    catalog-graph.demo/health: degraded
+    catalog-graph.demo/latency-ms: '1450'
+    catalog-graph.demo/sync: OutOfSync
+spec:
+  type: service
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  providesApis:
+    - payments-api
+---
+# ---------- Ingest + streaming (the failure) ----------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: order-ingest
+  description: Writes accepted orders to the orders topic
+  annotations:
+    argocd/app-name: order-ingest
+    prometheus.io/rule: histogram_quantile(0.95, http_latency{app="order-ingest"})
+    catalog-graph.demo/latency-ms: '60'
+spec:
+  type: service
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  dependsOn:
+    - resource:orders-topic
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: orders-topic
+  description: Kafka topic carrying order events
+  annotations:
+    prometheus.io/rule: kafka_consumergroup_lag{topic="orders"}
+    catalog-graph.demo/health: failing
+    catalog-graph.demo/latency-ms: '4200'
+spec:
+  type: kafka-topic
+  owner: team-data
+  system: order-pipeline
+---
+# ---------- Processing ----------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: order-processor
+  description: Consumes order events and persists them
+  annotations:
+    argocd/app-name: order-processor
+    prometheus.io/rule: histogram_quantile(0.95, process_latency{app="order-processor"})
+    catalog-graph.demo/latency-ms: '90'
+spec:
+  type: service
+  lifecycle: production
+  owner: team-data
+  system: order-pipeline
+  dependsOn:
+    - resource:orders-topic
+    - resource:orders-db
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: fulfillment-worker
+  description: Creates shipments for new orders
+  annotations:
+    argocd/app-name: fulfillment-worker
+    prometheus.io/rule: histogram_quantile(0.95, process_latency{app="fulfillment-worker"})
+    catalog-graph.demo/latency-ms: '130'
+spec:
+  type: service
+  lifecycle: production
+  owner: team-commerce
+  system: order-pipeline
+  dependsOn:
+    - resource:orders-topic
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: orders-db
+  description: Postgres database with all orders
+  annotations:
+    prometheus.io/rule: pg_query_latency{db="orders"}
+    catalog-graph.demo/latency-ms: '12'
+spec:
+  type: database
+  owner: team-data
+  system: order-pipeline
+---
+# ---------- Analytics ----------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: analytics-etl
+  description: Nightly ETL from the orders database into the warehouse
+  annotations:
+    argocd/app-name: analytics-etl
+    prometheus.io/rule: etl_job_duration_seconds{job="orders"}
+    catalog-graph.demo/latency-ms: '300'
+spec:
+  type: service
+  lifecycle: production
+  owner: team-data
+  system: order-pipeline
+  dependsOn:
+    - resource:orders-db
+    - resource:data-warehouse
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: data-warehouse
+  description: Analytics warehouse
+  annotations:
+    prometheus.io/rule: warehouse_query_latency{}
+    catalog-graph.demo/latency-ms: '700'
+    catalog-graph.demo/ring: maintenance
+spec:
+  type: warehouse
+  owner: team-data
+  system: order-pipeline
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sales-dashboard
+  description: Daily sales reporting
+  annotations:
+    argocd/app-name: sales-dashboard
+    catalog-graph.demo/latency-ms: '220'
+spec:
+  type: website
+  lifecycle: production
+  owner: team-data
+  system: order-pipeline
+  dependsOn:
+    - component:analytics-etl
