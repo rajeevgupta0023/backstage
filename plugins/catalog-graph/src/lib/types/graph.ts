@@ -20,6 +20,7 @@ import { DependencyGraphTypes } from '@backstage/core-components';
 import { MouseEventHandler } from 'react';
 import { Entity } from '@backstage/catalog-model';
 import { JsonObject } from '@backstage/types';
+import { NodeOverlay, NodeOverlayDisplay } from './overlays';
 
 /**
  * Additional Data for entities.
@@ -68,6 +69,18 @@ export type EntityNodeData = {
    * Optional click handler.
    */
   onClick?: MouseEventHandler<unknown>;
+  /**
+   * Live data contributed by node overlay providers, if any apply.
+   */
+  overlays?: NodeOverlay[];
+  /**
+   * Which parts of the overlays are shown, defaults to everything.
+   */
+  overlayDisplay?: NodeOverlayDisplay;
+  /**
+   * Entity refs of failing nodes that this node transitively depends on.
+   */
+  impactedBy?: string[];
 
   /**
    * Name of the entity.

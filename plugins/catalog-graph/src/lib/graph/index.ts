@@ -16,3 +16,6 @@
 
 export { buildGraph } from './build-graph';
 export type { BuildGraphOptions } from './build-graph';
+export { computeImpact, IMPACT_RELATIONS } from './compute-impact';
+export { resolveRing } from './resolve-ring';
+export type { ResolvedRing } from './resolve-ring';

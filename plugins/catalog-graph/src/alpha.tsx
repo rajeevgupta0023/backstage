@@ -42,6 +42,8 @@ const CatalogGraphEntityCard = EntityCardBlueprint.makeWithOverrides({
     relationPairs: z.array(z.tuple([z.string(), z.string()])).optional(),
     zoom: z.enum(['enabled', 'disabled', 'enable-on-click']).optional(),
     curve: z.enum(['curveStepBefore', 'curveMonotoneX']).optional(),
+    showOverlayDetails: z.boolean().optional(),
+    showOverlayCharts: z.boolean().optional(),
     // Skipping a "variant" config for now, defaulting to "gridItem" in the component
     // For more details, see this comment: https://github.com/backstage/backstage/pull/22619#discussion_r1477333252
     title: z.string().optional(),
@@ -73,6 +75,8 @@ const CatalogGraphPage = PageBlueprint.makeWithOverrides({
     relations: z.array(z.string()).optional(),
     relationPairs: z.array(z.tuple([z.string(), z.string()])).optional(),
     zoom: z.enum(['enabled', 'disabled', 'enable-on-click']).optional(),
+    showOverlayDetails: z.boolean().optional(),
+    showOverlayCharts: z.boolean().optional(),
   },
   factory(originalFactory, { config }) {
     return originalFactory({

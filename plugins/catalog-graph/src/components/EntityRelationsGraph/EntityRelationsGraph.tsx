@@ -23,16 +23,30 @@ import {
   DependencyGraph,
   DependencyGraphTypes,
 } from '@backstage/core-components';
-import { errorApiRef, useApi } from '@backstage/core-plugin-api';
+import { errorApiRef, useApi, useApiHolder } from '@backstage/core-plugin-api';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
 import classNames from 'classnames';
-import { MouseEvent, useEffect, useMemo } from 'react';
+import { MouseEvent, useCallback, useEffect, useMemo } from 'react';
 import { DefaultRenderLabel } from './DefaultRenderLabel';
 import { DefaultRenderNode } from './DefaultRenderNode';
 import { RelationPairs } from '../../lib/types';
-import { Direction, EntityEdge, EntityNode } from '../../lib/types';
+import {
+  CatalogGraphNodeOverlayProvider,
+  Direction,
+  NodeOverlayDisplay,
+  EntityEdge,
+  EntityNode,
+} from '../../lib/types';
 import { useEntityRelationNodesAndEdges } from './useEntityRelationNodesAndEdges';
+import { useNodeOverlays } from './useNodeOverlays';
+import {
+  chartPanelHeight,
+  DefaultRenderNodeOverlay,
+  PANEL_GAP,
+  PANEL_SIDE_WIDTH,
+} from './NodeOverlays';
+import { catalogGraphApiRef } from '../../api';
 
 /** @public */
 export type EntityRelationsGraphClassKey = 'progress' | 'container' | 'graph';
@@ -89,10 +103,29 @@ export type EntityRelationsGraphProps = {
   zoom?: 'enabled' | 'disabled' | 'enable-on-click';
   renderNode?: DependencyGraphTypes.RenderNodeFunction<EntityNode>;
   renderLabel?: DependencyGraphTypes.RenderLabelFunction<EntityEdge>;
+  /**
+   * Custom renderer for content floating above nodes, defaults to the chart
+   * panel of node overlays.
+   */
+  renderNodeOverlay?: DependencyGraphTypes.RenderNodeOverlayFunction<EntityNode>;
   renderEdge?: DependencyGraphTypes.RenderEdgeFunction<EntityEdge>;
   curve?: 'curveStepBefore' | 'curveMonotoneX';
   showArrowHeads?: boolean;
   allowFullscreen?: boolean;
+  /**
+   * Providers of live node data. Defaults to the providers registered in the
+   * catalog graph API.
+   */
+  nodeOverlayProviders?: CatalogGraphNodeOverlayProvider[];
+  /**
+   * Show compact overlay facts in the node card, defaults to true. The ring
+   * around nodes is shown either way.
+   */
+  showOverlayDetails?: boolean;
+  /**
+   * Show overlay charts in a panel floating above nodes, defaults to true.
+   */
+  showOverlayCharts?: boolean;
 };
 
 /**
@@ -116,10 +149,14 @@ export const EntityRelationsGraph = (props: EntityRelationsGraphProps) => {
     zoom = 'enabled',
     renderNode,
     renderLabel,
+    renderNodeOverlay,
     renderEdge,
     curve,
     showArrowHeads,
     allowFullscreen,
+    nodeOverlayProviders,
+    showOverlayDetails = true,
+    showOverlayCharts = true,
   } = props;
 
   const theme = useTheme();
@@ -133,7 +170,23 @@ export const EntityRelationsGraph = (props: EntityRelationsGraphProps) => {
     [rootEntityNames],
   );
   const errorApi = useApi(errorApiRef);
-  const { loading, error, nodes, edges } = useEntityRelationNodesAndEdges({
+  // Not every app registers the catalog graph API, e.g. in tests
+  const catalogGraphApi = useApiHolder().get(catalogGraphApiRef);
+  // Data is fetched even when details and charts are hidden, for the ring
+  const providers = useMemo(
+    () => nodeOverlayProviders ?? catalogGraphApi?.nodeOverlayProviders ?? [],
+    [nodeOverlayProviders, catalogGraphApi],
+  );
+  const overlayDisplay = useMemo<NodeOverlayDisplay>(
+    () => ({ details: showOverlayDetails, charts: showOverlayCharts }),
+    [showOverlayDetails, showOverlayCharts],
+  );
+  const {
+    loading,
+    error,
+    nodes: plainNodes,
+    edges,
+  } = useEntityRelationNodesAndEdges({
     rootEntityRefs,
     maxDepth,
     unidirectional,
@@ -144,6 +197,37 @@ export const EntityRelationsGraph = (props: EntityRelationsGraphProps) => {
     onNodeClick,
     relationPairs,
   });
+  const nodes = useNodeOverlays(plainNodes, providers, overlayDisplay);
+
+  // Floating chart panels are drawn above the nodes for horizontal graphs and
+  // beside them for vertical ones, where edges enter nodes from the top.
+  // Reserve space for the largest panel so panels never cover other nodes.
+  const vertical =
+    direction === Direction.TOP_BOTTOM || direction === Direction.BOTTOM_TOP;
+  const maxPanelHeight = useMemo(
+    () =>
+      showOverlayCharts
+        ? Math.max(
+            0,
+            ...(nodes ?? []).map(n => chartPanelHeight(n.overlays ?? [])),
+          )
+        : 0,
+    [nodes, showOverlayCharts],
+  );
+  const panelSpace = maxPanelHeight ? maxPanelHeight + PANEL_GAP : 0;
+  const panelSideSpace = maxPanelHeight ? PANEL_SIDE_WIDTH + PANEL_GAP : 0;
+  const defaultRenderNodeOverlay = useCallback(
+    (overlayProps: DependencyGraphTypes.RenderNodeOverlayProps<EntityNode>) => (
+      <DefaultRenderNodeOverlay
+        node={overlayProps.node}
+        width={overlayProps.width}
+        height={overlayProps.height}
+        placement={vertical ? 'right' : 'top'}
+      />
+    ),
+    [vertical],
+  );
+  const spacing = theme.spacing(4);
 
   useEffect(() => {
     if (error) {
@@ -160,12 +244,17 @@ export const EntityRelationsGraph = (props: EntityRelationsGraphProps) => {
           edges={edges}
           renderNode={renderNode || DefaultRenderNode}
           renderLabel={renderLabel || DefaultRenderLabel}
+          renderNodeOverlay={
+            renderNodeOverlay ??
+            (maxPanelHeight ? defaultRenderNodeOverlay : undefined)
+          }
+          nodeMargin={50 + (vertical ? panelSideSpace : panelSpace)}
           renderEdge={renderEdge}
           direction={direction}
           className={classes.graph}
           fit="contain"
-          paddingX={theme.spacing(4)}
-          paddingY={theme.spacing(4)}
+          paddingX={spacing + (vertical ? panelSideSpace : 0)}
+          paddingY={spacing + (vertical ? 0 : panelSpace)}
           labelPosition={DependencyGraphTypes.LabelPosition.RIGHT}
           labelOffset={theme.spacing(1)}
           zoom={zoom}

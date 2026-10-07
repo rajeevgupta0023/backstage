@@ -24,3 +24,17 @@ export type {
   EntityNode,
 } from './graph';
 export { Direction } from './graph';
+export type {
+  CatalogGraphNodeOverlayProvider,
+  NodeOverlay,
+  NodeOverlayData,
+  NodeOverlaySeries,
+  NodeOverlayStatus,
+  NodeOverlayThreshold,
+  NodeOverlayBreakdown,
+  NodeOverlayRing,
+  NodeOverlayCard,
+  NodeOverlayChart,
+  NodeOverlayDisplay,
+  NodeOverlayTableRow,
+} from './overlays';

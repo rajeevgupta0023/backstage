@@ -96,6 +96,36 @@ export namespace DependencyGraphTypes {
   ) => ReactNode;
 
   /**
+   * Properties of {@link DependencyGraphTypes.RenderNodeOverlayFunction}
+   *
+   * @public
+   */
+  export type RenderNodeOverlayProps<T = unknown> = {
+    node: DependencyNode<T>;
+    /**
+     * Rendered width of the node
+     */
+    width: number;
+    /**
+     * Rendered height of the node
+     */
+    height: number;
+  };
+
+  /**
+   * Custom React component drawn on top of a graph
+   * {@link DependencyGraphTypes.DependencyNode}, in a layer above all nodes
+   * and edges. The origin is the top left corner of the node. Unlike
+   * {@link DependencyGraphTypes.RenderNodeFunction}, the rendered size does
+   * not affect the layout, so overlays can extend beyond the node.
+   *
+   * @public
+   */
+  export type RenderNodeOverlayFunction<T = {}> = (
+    props: RenderNodeOverlayProps<T>,
+  ) => ReactNode;
+
+  /**
    * Properties of {@link DependencyGraphTypes.RenderEdgeFunction} for {@link DependencyGraphTypes.DependencyEdge}
    *
    * @public

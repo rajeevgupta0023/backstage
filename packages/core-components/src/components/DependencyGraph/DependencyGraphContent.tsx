@@ -176,6 +176,13 @@ export interface DependencyGraphProps<NodeData, EdgeData>
    */
   renderNode?: Types.RenderNodeFunction<NodeData>;
   /**
+   * Custom component drawn above each node, in a layer on top of all nodes
+   * and edges, without affecting the layout. Use
+   * {@link DependencyGraphProps.nodeMargin} or
+   * {@link DependencyGraphProps.paddingY} to reserve space for it.
+   */
+  renderNodeOverlay?: Types.RenderNodeOverlayFunction<NodeData>;
+  /**
    * Custom label rendering component
    */
   renderLabel?: Types.RenderLabelFunction<EdgeData>;
@@ -239,6 +246,7 @@ export function DependencyGraph<NodeData, EdgeData>(
     edges,
     nodes,
     renderNode,
+    renderNodeOverlay,
     direction = Types.Direction.TOP_BOTTOM,
     align,
     nodeMargin = 50,
@@ -644,6 +652,23 @@ export function DependencyGraph<NodeData, EdgeData>(
                   />
                 );
               })}
+              {renderNodeOverlay &&
+                graphNodes.map((id: string) => {
+                  const node = graph.current.node(id);
+                  // Wait until the node has been measured
+                  if (!node || !node.width || !node.height) return null;
+                  const { x = 0, y = 0, width, height } = node;
+                  return (
+                    <g
+                      key={`overlay-${id}`}
+                      transform={`translate(${x - width / 2},${
+                        y - height / 2
+                      })`}
+                    >
+                      {renderNodeOverlay({ node, width, height })}
+                    </g>
+                  );
+                })}
             </svg>
           </g>
         </svg>

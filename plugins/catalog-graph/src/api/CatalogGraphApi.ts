@@ -15,6 +15,7 @@
  */
 
 import { createApiRef } from '@backstage/core-plugin-api';
+import { CatalogGraphNodeOverlayProvider } from '../lib/types';
 
 /**
  * Utility API reference for the {@link CatalogGraphApi}.
@@ -55,4 +56,7 @@ export interface CatalogGraphApi {
 
   /** The default relations to show in the graph */
   readonly defaultRelations: string[];
+
+  /** Providers that contribute live data to graph nodes */
+  readonly nodeOverlayProviders?: CatalogGraphNodeOverlayProvider[];
 }

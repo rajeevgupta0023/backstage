@@ -41,6 +41,8 @@ import {
   EntityRelationsGraphProps,
 } from '../EntityRelationsGraph';
 import { CurveFilter } from './CurveFilter';
+import { useApiHolder } from '@backstage/core-plugin-api';
+import { catalogGraphApiRef } from '../../api';
 import { DirectionFilter } from './DirectionFilter';
 import { MaxDepthFilter } from './MaxDepthFilter';
 import { SelectedKindsFilter } from './SelectedKindsFilter';
@@ -128,6 +130,8 @@ export const CatalogGraphPage = (
       direction?: Direction;
       showFilters?: boolean;
       curve?: 'curveStepBefore' | 'curveMonotoneX';
+      showOverlayDetails?: boolean;
+      showOverlayCharts?: boolean;
     };
   } & Partial<EntityRelationsGraphProps>,
 ) => {
@@ -151,12 +155,21 @@ export const CatalogGraphPage = (
     setDirection,
     curve,
     setCurve,
+    showOverlayDetails,
+    setShowOverlayDetails,
+    showOverlayCharts,
+    setShowOverlayCharts,
     rootEntityNames,
     setRootEntityNames,
     showFilters,
     toggleShowFilters,
   } = useCatalogGraphPage({ initialState });
   const analytics = useAnalytics();
+  // Only offer the live data filter when there is live data to show
+  const catalogGraphApi = useApiHolder().get(catalogGraphApiRef);
+  const hasOverlayProviders = !!(
+    props.nodeOverlayProviders ?? catalogGraphApi?.nodeOverlayProviders
+  )?.length;
   const onNodeClick = useCallback(
     (node: EntityNode, event: MouseEvent<unknown>) => {
       const nodeEntityName = parseEntityRef(node.id);
@@ -219,6 +232,20 @@ export const CatalogGraphPage = (
               />
               <DirectionFilter value={direction} onChange={setDirection} />
               <CurveFilter value={curve} onChange={setCurve} />
+              {hasOverlayProviders && (
+                <>
+                  <SwitchFilter
+                    value={showOverlayDetails}
+                    onChange={setShowOverlayDetails}
+                    label={t('catalogGraphPage.overlayDetailsSwitchLabel')}
+                  />
+                  <SwitchFilter
+                    value={showOverlayCharts}
+                    onChange={setShowOverlayCharts}
+                    label={t('catalogGraphPage.overlayChartsSwitchLabel')}
+                  />
+                </>
+              )}
               <SwitchFilter
                 value={unidirectional}
                 onChange={setUnidirectional}
@@ -266,6 +293,8 @@ export const CatalogGraphPage = (
                 className={classes.graph}
                 zoom="enabled"
                 curve={curve}
+                showOverlayDetails={showOverlayDetails}
+                showOverlayCharts={showOverlayCharts}
               />
             </Paper>
           </Grid>

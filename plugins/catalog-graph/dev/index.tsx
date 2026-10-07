@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import {
+  GetEntitiesByRefsRequest,
+  GetEntitiesByRefsResponse,
   GetEntitiesResponse,
   GetEntityFacetsRequest,
   GetEntityFacetsResponse,
@@ -46,12 +48,94 @@ import { JsonObject } from '@backstage/types';
 import Grid from '@material-ui/core/Grid';
 import _ from 'lodash';
 import {
+  CatalogGraphNodeOverlayProvider,
   CatalogGraphPage,
+  catalogGraphApiRef,
   catalogGraphPlugin,
+  DefaultCatalogGraphApi,
   EntityCatalogGraphCard,
+  NodeOverlaySeries,
 } from '../src';
 
 type DataRelation = [string, string, string];
+
+// Annotations that fake overlay providers use to decide if they apply
+const annotations: Record<string, Record<string, string>> = {
+  'component:wayback-archive': {
+    'argocd/app-name': 'wayback-archive',
+    'prometheus.io/rule': 'latency{app="wayback-archive"}',
+  },
+  'component:wayback-search': {
+    'argocd/app-name': 'wayback-search',
+    'prometheus.io/rule': 'latency{app="wayback-search"}',
+  },
+  'resource:wayback-search-db': {
+    'prometheus.io/rule': 'latency{app="wayback-search-db"}',
+  },
+  'resource:wayback-archive-storage': {
+    'prometheus.io/rule': 'latency{app="wayback-archive-storage"}',
+  },
+};
+
+function randomWalk(base: number, spread: number): NodeOverlaySeries['points'] {
+  let v = base;
+  return Array.from({ length: 30 }, (_value, i) => {
+    v = Math.max(0, v + (Math.random() - 0.5) * spread);
+    return { t: Date.now() - (30 - i) * 60_000, v };
+  });
+}
+
+const fakeArgoCdProvider: CatalogGraphNodeOverlayProvider = {
+  id: 'argocd',
+  title: 'Argo CD',
+  isApplicable: entity => !!entity.metadata.annotations?.['argocd/app-name'],
+  async getData(entity) {
+    if (entity.metadata.name === 'wayback-search') {
+      return { status: 'degraded', card: { summary: 'OutOfSync' } };
+    }
+    return { status: 'ok', card: { summary: 'Synced' } };
+  },
+};
+
+const fakePrometheusProvider: CatalogGraphNodeOverlayProvider = {
+  id: 'prometheus',
+  title: 'Prometheus',
+  isApplicable: entity => !!entity.metadata.annotations?.['prometheus.io/rule'],
+  async getData(entity) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const failing = entity.metadata.name === 'wayback-search-db';
+    const p95: NodeOverlaySeries = {
+      label: 'p95 latency',
+      unit: 'ms',
+      points: failing ? randomWalk(900, 300) : randomWalk(120, 40),
+    };
+    return {
+      status: failing ? 'failing' : 'ok',
+      card: { sparkline: p95 },
+      chart: { series: [p95] },
+      ring: failing ? { status: 'failing' } : undefined,
+    };
+  },
+  Panel: ({ data }) => {
+    const points = data.chart?.series?.[0]?.points ?? [];
+    const max = Math.max(...points.map(p => p.v), 1);
+    return (
+      <svg width={320} height={100}>
+        <polyline
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          points={points
+            .map(
+              (p, i) =>
+                `${(i / (points.length - 1)) * 320},${100 - (p.v / max) * 95}`,
+            )
+            .join(' ')}
+        />
+      </svg>
+    );
+  },
+};
 type DataEntity = [string, string, DataRelation[], JsonObject?];
 
 const entities = (
@@ -147,6 +231,7 @@ const entities = (
     kind,
     metadata: {
       name,
+      annotations: annotations[`${kind}:${name}`.toLocaleLowerCase('en-US')],
     },
     spec: spec,
     relations: relations.map(([type, k, n]) => ({
@@ -167,6 +252,14 @@ const entities = (
 createDevApp()
   .registerPlugin(catalogGraphPlugin)
   .registerApi({
+    api: catalogGraphApiRef,
+    deps: {},
+    factory: () =>
+      new DefaultCatalogGraphApi({
+        nodeOverlayProviders: [fakeArgoCdProvider, fakePrometheusProvider],
+      }),
+  })
+  .registerApi({
     api: catalogApiRef,
     deps: {},
     factory() {
@@ -177,6 +270,11 @@ createDevApp()
           return entities[
             typeof ref === 'string' ? ref : stringifyEntityRef(ref)
           ];
+        },
+        async getEntitiesByRefs(
+          request: GetEntitiesByRefsRequest,
+        ): Promise<GetEntitiesByRefsResponse> {
+          return { items: request.entityRefs.map(ref => entities[ref]) };
         },
         async getEntities(): Promise<GetEntitiesResponse> {
           return { items: Object.values(entities) };

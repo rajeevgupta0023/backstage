@@ -58,4 +58,12 @@ describe('DefaultCatalogGraphApi', () => {
     expect(defaultRelations.includes('ownedBy')).toBe(false);
     expect(defaultRelations.includes('hasPart')).toBe(true);
   });
+
+  it('defaults to all relations when only other options are given', async () => {
+    const { defaultRelations } = new DefaultCatalogGraphApi({
+      knownRelations: ['ownedBy', 'hasPart'],
+    });
+
+    expect(defaultRelations).toEqual(['ownedBy', 'hasPart']);
+  });
 });

@@ -33,6 +33,18 @@ export type {
   EntityEdge,
   EntityNodeData,
   EntityNode,
+  CatalogGraphNodeOverlayProvider,
+  NodeOverlay,
+  NodeOverlayData,
+  NodeOverlaySeries,
+  NodeOverlayStatus,
+  NodeOverlayThreshold,
+  NodeOverlayBreakdown,
+  NodeOverlayRing,
+  NodeOverlayCard,
+  NodeOverlayChart,
+  NodeOverlayDisplay,
+  NodeOverlayTableRow,
 } from './lib/types';
 export { Direction } from './lib/types';
 export type { TransformationContext } from './lib/graph-transformations';

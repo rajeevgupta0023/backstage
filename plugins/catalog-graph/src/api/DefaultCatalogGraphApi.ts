@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { ALL_RELATION_PAIRS, ALL_RELATIONS, RelationPairs } from '../lib/types';
+import {
+  ALL_RELATION_PAIRS,
+  ALL_RELATIONS,
+  CatalogGraphNodeOverlayProvider,
+  RelationPairs,
+} from '../lib/types';
 import {
   CatalogGraphApi,
   DefaultRelations,
@@ -31,6 +36,7 @@ export interface DefaultCatalogGraphApiOptions {
   readonly knownRelations?: string[];
   readonly knownRelationPairs?: RelationPairs;
   readonly defaultRelationTypes?: DefaultRelations;
+  readonly nodeOverlayProviders?: CatalogGraphNodeOverlayProvider[];
 }
 
 /**
@@ -42,6 +48,7 @@ export class DefaultCatalogGraphApi implements CatalogGraphApi {
   readonly knownRelations: string[];
   readonly knownRelationPairs: [string, string][];
   readonly defaultRelations: string[];
+  readonly nodeOverlayProviders: CatalogGraphNodeOverlayProvider[];
 
   constructor(
     options: DefaultCatalogGraphApiOptions = {
@@ -52,8 +59,9 @@ export class DefaultCatalogGraphApi implements CatalogGraphApi {
   ) {
     this.knownRelations = options.knownRelations ?? ALL_RELATIONS;
     this.knownRelationPairs = options.knownRelationPairs ?? ALL_RELATION_PAIRS;
+    this.nodeOverlayProviders = options.nodeOverlayProviders ?? [];
 
-    const defaultRelations = options.defaultRelationTypes;
+    const defaultRelations = options.defaultRelationTypes ?? { exclude: [] };
 
     if (Array.isArray((defaultRelations as DefaultRelationsInclude).include)) {
       const defaultRelationsInclude =

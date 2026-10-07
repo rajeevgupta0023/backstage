@@ -49,6 +49,10 @@ export type CatalogGraphPageValue = {
   setCurve: Dispatch<
     React.SetStateAction<'curveStepBefore' | 'curveMonotoneX'>
   >;
+  showOverlayDetails: boolean;
+  setShowOverlayDetails: Dispatch<React.SetStateAction<boolean>>;
+  showOverlayCharts: boolean;
+  setShowOverlayCharts: Dispatch<React.SetStateAction<boolean>>;
   showFilters: boolean;
   toggleShowFilters: DispatchWithoutAction;
 };
@@ -66,6 +70,8 @@ export function useCatalogGraphPage({
     direction?: Direction;
     showFilters?: boolean;
     curve?: 'curveStepBefore' | 'curveMonotoneX';
+    showOverlayDetails?: boolean;
+    showOverlayCharts?: boolean;
   };
 }): CatalogGraphPageValue {
   const location = useLocation();
@@ -86,6 +92,8 @@ export function useCatalogGraphPage({
         direction?: string[] | Direction;
         showFilters?: string[] | string;
         curve?: string[] | 'curveStepBefore' | 'curveMonotoneX';
+        showOverlayDetails?: string[] | string;
+        showOverlayCharts?: string[] | string;
       },
     [location.search],
   );
@@ -169,6 +177,18 @@ export function useCatalogGraphPage({
       : initialState?.curve ?? 'curveMonotoneX',
   );
 
+  const [showOverlayDetails, setShowOverlayDetails] = useState<boolean>(() =>
+    typeof query.showOverlayDetails === 'string'
+      ? query.showOverlayDetails === 'true'
+      : initialState?.showOverlayDetails ?? true,
+  );
+
+  const [showOverlayCharts, setShowOverlayCharts] = useState<boolean>(() =>
+    typeof query.showOverlayCharts === 'string'
+      ? query.showOverlayCharts === 'true'
+      : initialState?.showOverlayCharts ?? true,
+  );
+
   const [showFilters, setShowFilters] = useState<boolean>(() =>
     typeof query.showFilters === 'string'
       ? query.showFilters === 'true'
@@ -192,6 +212,10 @@ export function useCatalogGraphPage({
         direction,
         showFilters,
         curve,
+        // Only stored when turned off, keeps URLs stable for apps without
+        // overlays
+        showOverlayDetails: showOverlayDetails ? undefined : false,
+        showOverlayCharts: showOverlayCharts ? undefined : false,
       },
       { arrayFormat: 'brackets', addQueryPrefix: true },
     );
@@ -200,6 +224,8 @@ export function useCatalogGraphPage({
   }, [
     maxDepth,
     curve,
+    showOverlayDetails,
+    showOverlayCharts,
     selectedKinds,
     selectedRelations,
     unidirectional,
@@ -227,6 +253,10 @@ export function useCatalogGraphPage({
     setDirection,
     curve,
     setCurve,
+    showOverlayDetails,
+    setShowOverlayDetails,
+    showOverlayCharts,
+    setShowOverlayCharts,
     showFilters,
     toggleShowFilters,
   };
