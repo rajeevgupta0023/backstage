@@ -256,6 +256,7 @@
     "cli-group-reports",
     "config-number-empty-string",
     "create-app-1791308434",
+    "create-app-1791383199",
     "errors-nested-cause-stack",
     "fair-catalog-projections",
     "fast-ldap-graphs",
@@ -310,6 +311,7 @@
     "tidy-patches-smile",
     "tidy-pglite-reports",
     "tidy-techdocs-styles",
+    "ui-fix-combobox-keyboard-search",
     "weak-carrots-wash"
   ]
 }

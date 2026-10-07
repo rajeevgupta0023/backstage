@@ -1,5 +1,12 @@
 # @backstage/plugin-mui-to-bui
 
+## 0.2.12-next.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/ui@0.18.1-next.0
+
 ## 0.2.12-next.1
 
 ### Patch Changes
